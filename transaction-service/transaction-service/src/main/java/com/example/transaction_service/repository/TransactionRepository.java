@@ -10,4 +10,5 @@ import java.util.List;
 public interface TransactionRepository extends JpaRepository<Transaction,String> {
         List<Transaction> findByFromAccountId(String fromAccountId);
         List<Transaction> findByToAccountId(String toAccountId);
+        boolean existsByAccountId(String accountId);
 }

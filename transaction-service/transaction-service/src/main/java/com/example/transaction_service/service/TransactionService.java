@@ -18,6 +18,7 @@ import com.example.transaction_service.dto.LogMessage;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 import static com.example.transaction_service.model.DeliveryStatus.*;
 import static com.example.transaction_service.model.TransactionStatus.*;
@@ -61,6 +62,10 @@ public class TransactionService {
         AccountInfo accountToInfo = transactionInterface.getAccount(transferRequest.getToAccountId());
         BigDecimal balance = accountFromInfo.getBalance();
         if (accountFromInfo.getBalance().compareTo(transactionInitiationRequest.getAmount()) < 0) {
+            sendLog(
+                    Map.of("error", "Insufficient balance"),
+                    "Response"
+            );
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Insufficient balance");
         }
         Transaction transaction = transactionMapper.toTransaction(transactionInitiationRequest);
@@ -75,38 +80,53 @@ public class TransactionService {
     public TransactionResponse executeTransfer(TransactionExecutionRequest transactionExecutionRequest) {
         sendLog(transactionExecutionRequest, "Request");
         Transaction transaction = transactionRepository.findById(transactionExecutionRequest.getTransactionId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Transaction not initiated"));
+                .orElseThrow(() -> {
+                    Map<String, Object> errorLog = Map.of("error", "Transaction not initiated");
+                    sendLog(errorLog, "Response");
+                    return new ResponseStatusException(HttpStatus.NOT_FOUND, "Transaction not initiated");
+                });
         TransferRequest transferRequest = transactionMapper.fromTransaction(transaction);
-
         try{
-            MessageResponse messageResponse = transactionInterface.transfer(transferRequest);
+            transactionInterface.transfer(transferRequest);
             transaction.setStatus(SUCCESS);
             transaction.setDeliveryStatus(DELIVERED);
             transactionRepository.save(transaction);
+            TransactionResponse transactionResponse = transactionMapper.toTransferResponse(transaction);
+            sendLog(transactionResponse, "Response");
+            return transactionResponse;
         } catch (ResponseStatusException ex) {
             transaction.setStatus(FAILED);
             transaction.setDeliveryStatus(SENT);
             transactionRepository.save(transaction);
+            sendLog(Map.of("error", ex.getReason()), "Response");
             throw ex;
         } catch (Exception e) {
             transaction.setStatus(FAILED);
             transaction.setDeliveryStatus(SENT);
             transactionRepository.save(transaction);
+            sendLog(Map.of("error", "Unexpected error while processing transfer"), "Response");
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Unexpected error while processing transfer");
         }
-        TransactionResponse transactionResponse = transactionMapper.toTransferResponse(transaction);
-        sendLog(transactionResponse, "Response");
-        return transactionResponse;
     }
 
     public List<AllTransactionsResponse> getAllTransactions(String accountId) {
         sendLog(accountId, "Request");
-        List<Transaction> transactions = transactionRepository.findByFromAccountId(accountId);
-        List<Transaction> transactionsTo = transactionRepository.findByToAccountId(accountId);
-        transactions.addAll(transactionsTo);
-        sendLog(transactions, "Response");
-        return transactions.stream()
-                .map(transactionMapper::toAllTransactionsResponse)
-                .toList();
+        try {
+            List<Transaction> transactions = transactionRepository.findByFromAccountId(accountId);
+            List<Transaction> transactionsTo = transactionRepository.findByToAccountId(accountId);
+            transactions.addAll(transactionsTo);
+
+            List<AllTransactionsResponse> response = transactions.stream()
+                    .map(transactionMapper::toAllTransactionsResponse)
+                    .toList();
+
+            sendLog(response, "Response");
+            return response;
+
+        } catch (Exception ex) {
+            sendLog(Map.of("error", ex.getMessage()), "Response");
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Unexpected error while fetching transactions");
+        }
     }
 }

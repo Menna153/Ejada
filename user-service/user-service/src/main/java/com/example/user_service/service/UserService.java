@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
+import java.util.Map;
 
 @Service
 public class UserService {
@@ -52,6 +53,10 @@ public class UserService {
         sendLog(createUserRequest, "Request");
         if (userRepository.existsByUsername(createUserRequest.getUsername()) ||
                 userRepository.existsByEmail(createUserRequest.getEmail())) {
+            sendLog(
+                    Map.of("error", "Username or email already exists."),
+                    "Response"
+            );
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
                     "Username or email already exists."
@@ -71,6 +76,10 @@ public class UserService {
         sendLog(loginRequest, "Request");
         Users user = userRepository.findByUsername(loginRequest.getUsername());
         if (user == null || !passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
+            sendLog(
+                    Map.of("error", "Invalid username or password."),
+                    "Response"
+            );
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid username or password");
         }
         LoginResponse loginResponse = userMapper.toLoginResponse(user);
@@ -82,6 +91,10 @@ public class UserService {
         sendLog(userId, "Request");
         Users user = userRepository.findByUserId(userId);
         if (user == null) {
+            sendLog(
+                    Map.of("error", "User with ID " + userId + " not found."),
+                    "Response"
+            );
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User with ID " + userId + " not found.");
         }
         GetUserProfile getUserProfile = userMapper.toUserProfile(user);
