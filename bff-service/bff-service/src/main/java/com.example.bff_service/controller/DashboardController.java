@@ -22,10 +22,10 @@ public class DashboardController {
             @RequestHeader("APP-NAME") String appName) {
         return dashboardService.getDashboard(userId, appName)
                 .onErrorMap(WebClientResponseException.NotFound.class,
-                        ex -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"))
+                        ex -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found", ex))
                 .onErrorMap(Exception.class,
                         ex -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-                                "Failed to retrieve dashboard data due to an issue with downstream services"));
+                                "Failed to retrieve dashboard data due to an issue with downstream services", ex));
     }
 
 }

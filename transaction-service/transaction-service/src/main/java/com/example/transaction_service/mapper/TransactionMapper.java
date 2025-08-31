@@ -18,6 +18,7 @@ public interface TransactionMapper {
     @Mapping(target = "amount", source = "amount")
     Transaction toTransaction(TransactionInitiationRequest transactionInitiationRequest);
 
+    @Mapping(target = "timestamp", expression = "java(java.time.Instant.now())")
     TransactionResponse toTransferResponse(Transaction transaction);
 
     TransferRequest toTransferRequest(TransactionInitiationRequest transactionInitiationRequest);

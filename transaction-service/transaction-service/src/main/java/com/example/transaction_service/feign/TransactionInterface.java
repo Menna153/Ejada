@@ -13,6 +13,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 public interface TransactionInterface {
     @GetMapping("/accounts/{accountId}")
     public AccountInfo getAccount(@PathVariable String accountId);
-    @PutMapping("/transfer")
+    @PutMapping("/accounts/transfer")
     public MessageResponse transfer(@RequestBody TransferRequest transferRequest);
 }

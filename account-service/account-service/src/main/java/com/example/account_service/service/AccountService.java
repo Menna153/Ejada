@@ -93,6 +93,9 @@ public class AccountService {
             from.setBalance(from.getBalance().subtract(request.getAmount()));
             to.setBalance(to.getBalance().add(request.getAmount()));
 
+            from.setTimestamp(Instant.now());
+            to.setTimestamp(Instant.now());
+
             accountRepository.save(from);
             accountRepository.save(to);
 
@@ -117,6 +120,16 @@ public class AccountService {
         }
         try {
             accountInterface.getUserInfo(request.getUserId());
+            Account account = accountMapper.fromCreateAccount(request);
+            account.setStatus(ACTIVE);
+            account.setTimestamp(Instant.now());
+            account.setAccountNumber(generateAccountNumber());
+            accountRepository.save(account);
+
+            AccountResponse response = accountMapper.toAccountResponse(account);
+            response.setMessage("Account created successfully.");
+            sendLog(response, "Response");
+            return response;
         } catch (ResponseStatusException ex) {
             sendLog(
                     Map.of("error", "User not found"),
@@ -130,15 +143,6 @@ public class AccountService {
             );
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Unexpected error while processing transfer");
         }
-        Account account = accountMapper.fromCreateAccount(request);
-        account.setStatus(ACTIVE);
-        account.setAccountNumber(generateAccountNumber());
-        accountRepository.save(account);
-
-        AccountResponse response = accountMapper.toAccountResponse(account);
-        response.setMessage("Account created successfully.");
-        sendLog(response, "Response");
-        return response;
     }
 
     public List<AccountInfo> getAllAccounts(String userId) {

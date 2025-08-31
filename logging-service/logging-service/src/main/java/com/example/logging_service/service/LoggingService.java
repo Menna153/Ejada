@@ -31,8 +31,6 @@ public class LoggingService {
 
             logRepository.save(log);
 
-            System.out.println("✅ Log saved: " + log);
-
         } catch (Exception e) {
             e.printStackTrace();
         }

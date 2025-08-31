@@ -79,12 +79,16 @@ public class TransactionService {
 
     public TransactionResponse executeTransfer(TransactionExecutionRequest transactionExecutionRequest) {
         sendLog(transactionExecutionRequest, "Request");
-        Transaction transaction = transactionRepository.findById(transactionExecutionRequest.getTransactionId())
-                .orElseThrow(() -> {
-                    Map<String, Object> errorLog = Map.of("error", "Transaction not initiated");
-                    sendLog(errorLog, "Response");
-                    return new ResponseStatusException(HttpStatus.NOT_FOUND, "Transaction not initiated");
-                });
+        Transaction transaction = transactionRepository.findByTransactionId(
+                transactionExecutionRequest.getTransactionId()
+        );
+
+        if (transaction == null) {
+            Map<String, Object> errorLog = Map.of("error", "Transaction not initiated");
+            sendLog(errorLog, "Response");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Transaction not initiated");
+        }
+
         TransferRequest transferRequest = transactionMapper.fromTransaction(transaction);
         try{
             transactionInterface.transfer(transferRequest);
@@ -104,6 +108,7 @@ public class TransactionService {
             transaction.setStatus(FAILED);
             transaction.setDeliveryStatus(SENT);
             transactionRepository.save(transaction);
+
             sendLog(Map.of("error", "Unexpected error while processing transfer"), "Response");
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Unexpected error while processing transfer");
         }
@@ -120,6 +125,10 @@ public class TransactionService {
                     .map(transactionMapper::toAllTransactionsResponse)
                     .toList();
 
+            if(response.isEmpty()){
+                sendLog(Map.of("error", "No transactions found for account ID: " + accountId), "Response");
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No transactions found for account ID: " + accountId);
+            }
             sendLog(response, "Response");
             return response;
 
