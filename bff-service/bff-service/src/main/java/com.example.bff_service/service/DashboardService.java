@@ -17,7 +17,7 @@ import java.util.Map;
 @Service
 public class DashboardService {
     @Autowired
-    private WebClient webClient;
+    private WebClient.Builder webClientBuilder;
 
     @Autowired
     private KafkaTemplate<String, Object> kafkaTemplate;
@@ -45,16 +45,18 @@ public class DashboardService {
                 "appName", appName
         );
         sendLog(requestPayload, "Request");
+        WebClient webClient = webClientBuilder.build();
         Mono<GetUserProfile> userMono = webClient.get()
-                .uri("http://USER-SERVICE/users/{userId}/profile", userId)
+                .uri("http://localhost:8080/users/{userId}/profile", userId)
                 .header("APP-NAME", appName)
                 .retrieve()
                 .bodyToMono(GetUserProfile.class)
                 .doOnNext(user -> sendLog(user, "Response"));
 
+
         // Call Account Service
         Mono<List<AccountInfo>> accountsMono = webClient.get()
-                .uri("http://ACCOUNT-SERVICE/users/{userId}/accounts", userId)
+                .uri("http://localhost:8081/users/{userId}/accounts", userId)
                 .header("APP-NAME", appName)
                 .retrieve()
                 .bodyToFlux(AccountInfo.class)
@@ -69,7 +71,7 @@ public class DashboardService {
 
                     List<Mono<AccountWithTransactions>> accountMonos = accounts.stream()
                             .map(account -> webClient.get()
-                                    .uri("http://TRANSACTION-SERVICE/accounts/{accountId}/transactions", account.getAccountId())
+                                    .uri("http://localhost:8082/accounts/{accountId}/transactions", account.getAccountId())
                                     .header("APP-NAME", appName)
                                     .retrieve()
                                     .bodyToFlux(AllTransactionsResponse.class)
